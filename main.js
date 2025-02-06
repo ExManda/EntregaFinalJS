@@ -14,38 +14,46 @@ const URL_EXCHANGE = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD`;
 let monedaSeleccionada = "USD";
 
 // tasas de cambio de la API
-async function obtenerTasasDeCambio() {
-    try {
-        const response = await fetch(URL_EXCHANGE);
-        const data = await response.json();
-        return {
+function obtenerTasasDeCambio() {
+    return fetch(URL_EXCHANGE)
+        .then(response => response.json())
+        .then(data => ({
             ARS: data.conversion_rates.ARS,
             BRL: data.conversion_rates.BRL
-        };
-    } catch (error) {
-        console.error("Error al obtener tasas de cambio:", error);
-        return { ARS: null, BRL: null };
-    }
+        }))
+        .catch(error => {
+            console.error("Error al obtener tasas de cambio:", error);
+            return { ARS: null, BRL: null };
+        });
 }
+
 
 // Actualizar los precios con tasas de cambio
-async function actualizarPrecios() {
-    const tasas = await obtenerTasasDeCambio();
 
-    if (!tasas.ARS || !tasas.BRL) {
-        console.error("No se pudieron obtener las tasas de cambio.");
-        return;
-    }
+function actualizarPrecios() {
+    obtenerTasasDeCambio()
+        .then(tasas => {
+            if (!tasas.ARS || !tasas.BRL) {
+                console.error("No se pudieron obtener las tasas de cambio.");
+                return;
+            }
 
-    destinos.forEach(destino => {
-        destino.precioARS = (destino.precio * tasas.ARS).toFixed(2);
-        destino.precioBRL = (destino.precio * tasas.BRL).toFixed(2);
-    });
+            destinos.forEach(destino => {
+                destino.precioARS = (destino.precio * tasas.ARS).toFixed(2);
+                destino.precioBRL = (destino.precio * tasas.BRL).toFixed(2);
+            });
 
-    renderDestinos();
+            renderDestinos();
+        })
+        .catch(error => console.error("Error al actualizar precios:", error));
 }
 
+
+
+
+
 // Render la aplicación
+
 function renderApp() {
     const app = document.getElementById("app");
 
@@ -156,6 +164,23 @@ function agregarEventoFormulario() {
         }
 
         const destinoSeleccionado = destinos.find(d => d.id === idDestino);
+
+        // Datos para storage
+        const compra = {
+            nombre,
+            email,
+            destino: destinoSeleccionado.nombre,
+            fecha: new Date().toLocaleString()
+        };
+
+        console.log("Compra registrada:", compra); // <-- Para verificar en consola
+
+        // Compras previas y nuevas en el storage
+
+        const comprasPrevias = leerDeLocalStorage("compras");
+        comprasPrevias.push(compra);
+        guardarEnLocalStorage("compras", comprasPrevias);
+
         Swal.fire("¡Compra Confirmada!", `¡Gracias ${nombre}! Tu pasaje a ${destinoSeleccionado.nombre} está listo.`, "success");
     });
 }
